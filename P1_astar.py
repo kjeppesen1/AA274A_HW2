@@ -37,7 +37,19 @@ class AStar(object):
             Boolean True/False
         """
         ########## Code starts here ##########
+        is_free = True
         
+        #check if x is out of bounds
+        if(x[0] < self.statespace_lo[0] or x[0] > self.statespace_hi[0]):
+            is_free = False
+        #check if y is out of bounds
+        if(x[1] < self.statespace_lo[1] or x[1] > self.statespace_hi[1]):
+            is_free = False
+        #check if point is out of map
+        if(is_free):
+            is_free = self.occupancy.is_free(x)
+        
+        return is_free
         ########## Code ends here ##########
 
     def distance(self, x1, x2):
@@ -52,7 +64,7 @@ class AStar(object):
         HINT: This should take one line.
         """
         ########## Code starts here ##########
-        
+        return np.sqrt((x2[1] - x1[1])**2 + (x2[0] - x1[0])**2)
         ########## Code ends here ##########
 
     def snap_to_grid(self, x):
@@ -85,7 +97,34 @@ class AStar(object):
         """
         neighbors = []
         ########## Code starts here ##########
-        
+        #snap the point to the grid
+        x = self.snap_to_grid(x)
+        #left
+        if(self.is_free((x[0]-self.resolution,x[1]))):
+            neighbors.append((x[0]-self.resolution,x[1]))
+        #up-left
+        if(self.is_free((x[0]-self.resolution,x[1]+self.resolution))):
+            neighbors.append((x[0]-self.resolution,x[1]+self.resolution))
+        #up
+        if(self.is_free((x[0],x[1]+self.resolution))):
+            neighbors.append((x[0],x[1]+self.resolution))
+        #up-right
+        if(self.is_free((x[0]+self.resolution,x[1]+self.resolution))):
+            neighbors.append((x[0]+self.resolution,x[1]+self.resolution))
+        #right
+        if(self.is_free((x[0]+self.resolution,x[1]))):
+            neighbors.append((x[0]+self.resolution,x[1]))
+        #down-right
+        if(self.is_free((x[0]+self.resolution,x[1]-self.resolution))):
+            neighbors.append((x[0]+self.resolution,x[1]-self.resolution))
+        #down
+        if(self.is_free((x[0],x[1]-self.resolution))):
+            neighbors.append((x[0],x[1]-self.resolution))
+        #down-left
+        if(self.is_free((x[0]-self.resolution,x[1]-self.resolution))):
+            neighbors.append((x[0]-self.resolution,x[1]-self.resolution))
+                
+                
         ########## Code ends here ##########
         return neighbors
 
@@ -149,6 +188,58 @@ class AStar(object):
                 set membership efficiently using the syntax "if item in set".
         """
         ########## Code starts here ##########
+        #(following the given A* algorithm in handouts)
+        
+        #init open and closed sets (clear them)
+            #done for us in _init_
+        
+        #set cost to arrive score (x_init,0)
+            #done for us in _init_
+            
+        #set est cost through (x_init,x_goal)
+            #done for us in _init_
+            
+        #loop while the open_set has values
+        while (len(self.open_set)>0):
+            #set x_current to the lowest est. cost through
+            x_cur = self.find_best_est_cost_through()
+            
+            #if x_current is indeed the goal, return
+            if(x_cur == self.x_goal):
+                #assemble the reconstructed path, and return true
+                self.path = self.reconstruct_path()
+                return True
+            
+            #remove x_cur from the open set
+            self.open_set.remove(x_cur)
+            
+            #add x_cure to the closed set
+            self.closed_set.add(x_cur)
+            
+            #loop over all the neighbors of x_cur
+            for x_neigh in self.get_neighbors(x_cur):
+                #get out of loop iteration if already checked this node
+                if x_neigh in self.closed_set:
+                    continue
+               
+                #calculate the tentative cost to arrive , TODO wtf?
+                tent_cost_arr = self.cost_to_arrive[x_cur] + self.distance(x_cur,x_neigh)
+                
+                #if the neighbor node in question is not in the open set, add it
+                if x_neigh not in self.open_set:
+                    self.open_set.add(x_neigh)
+                    
+                #else if the tentative cost to arrive is greater than the cost to arrive
+                #to that neighbor in general, then continue
+                elif tent_cost_arr > self.cost_to_arrive[x_neigh]:
+                    continue
+                
+                #set the path and costs
+                self.came_from[x_neigh] = x_cur
+                self.cost_to_arrive[x_neigh] = tent_cost_arr
+                self.est_cost_through[x_neigh] = tent_cost_arr + self.distance(x_neigh,self.x_goal)
+                
+        return False
         
         ########## Code ends here ##########
 
