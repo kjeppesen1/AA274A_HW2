@@ -60,6 +60,31 @@ class TrajectoryTracker:
         ########## Code starts here ##########
         V = 0
         om = 0
+        
+        #Make sure we don't drop below V_PREV_THRESHOLD, else we may have a singularity
+        if self.V_prev < V_PREV_THRES:
+            self.V_prev = V_PREV_THRES
+        
+        #Calculate xd and yd
+        xd = self.V_prev*np.cos(th)
+        yd = self.V_prev*np.sin(th)
+        
+        #Hint, at each timestep you may consider the current velocity to be that commanded
+        #in previous timestep. Controller class designed to save this as member var self.V_prev
+        #use the control laws (given in HW and derived in lecture) to calculate u1, u2
+        xdd = xdd_d + self.kpx*(x_d-x) + self.kdx*(xd_d-xd) #u1
+        ydd = ydd_d + self.kpy*(y_d-y) + self.kdy*(yd_d-yd) #u2
+        
+        #Apply the equations derived in part 3i
+        #Summary: Took zdd = J*[a;w] = [u1;u2] and inverted J to solve for [a;w]
+        #in terms of u1 and u2 (AKA xdd and ydd)
+        a = xdd*np.cos(th) + ydd*np.sin(th)
+        om = -(1/self.V_prev)*(xdd*np.sin(th) - ydd*np.cos(th))
+        
+        #compute V by integrating a
+        dt = t-self.t_prev
+        V = self.V_prev + dt*a #Euler integration, where x_n+1 = x_n+dt*(x_n-x_n-1)
+        
         ########## Code ends here ##########
 
         # apply control limits

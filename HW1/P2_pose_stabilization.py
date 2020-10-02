@@ -34,7 +34,13 @@ class PoseController:
         may also be useful, look up its documentation
         """
         ########## Code starts here ##########
+        rho = np.sqrt((x-self.x_g)**2 + (y-self.y_g)**2) #subtract from goal coordinate to evaluate from goal, not origin
+        alpha = wrapToPi(np.arctan2(y-self.y_g,x-self.x_g) - th + np.pi) #wrapToPi ensures alpha, delta remain within [-pi,pi]
+        delta = wrapToPi(alpha + th - self.th_g) #subtract th_g for proper pointing
         
+        #implementing the given polar coordinate control law
+        V=self.k1*rho*np.cos(alpha)
+        om = self.k2*alpha + self.k1*(np.sinc(alpha/np.pi)*np.cos(alpha))*(alpha+self.k3*delta) #sinc(alpha) produces sin(alpha)/alpha
         ########## Code ends here ##########
 
         # apply control limits
