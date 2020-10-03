@@ -105,6 +105,53 @@ class RRT(object):
 
         ########## Code starts here ##########
         
+        #implementing algorithm 2 in handouts
+        
+        #initialize the tree nodes starting with out initial point
+        #Done for us above (rooted the tree)
+        
+        #solve points in tree up to max_iters
+        for k in range(1,max_iters-1):
+            #generate a random number b/w 0 and 1
+            z = np.random.uniform(0.0,1.0)
+            #AKA every goal_bias % of the time, we set the goal as our random point
+            #to help guide us in that right direction
+            if z < goal_bias:
+                x_rand = self.x_goal
+            else:
+                x_rand = [np.random.uniform(self.statespace_lo[0],self.statespace_hi[0]),
+                          np.random.uniform(self.statespace_lo[1],self.statespace_hi[1])]
+            
+            #find the nearest neighbor to the random point (w/in the tree thus far, up to n)
+            #x_near = self.find_nearest(V[:n,:], x_rand)
+            #x_near = V[self.find_nearest(V[:n,:], x_rand),:]
+            x_near = V[self.find_nearest(V[:n,:], x_rand),:]
+            #find the actual new point to maybe add to the tree by scaling with eps
+            x_new = self.steer_towards(x_near,x_rand,eps)
+            
+            #check for collisions in the path
+            if self.is_free_motion(self.obstacles, x_near, x_new):
+                #add the new point to the tree
+                V[n,:] = x_new
+                
+                #add the new edge to the tree
+                P[n] = self.find_nearest(V[:n,:], x_rand)
+                
+                #check if we happened to reach the goal
+                #if (x_new == self.x_goal):
+                if np.linalg.norm(x_new - self.x_goal) == 0:
+                    self.path = [self.x_goal]
+                    i = n
+                    while i>0:
+                        self.path = np.vstack([V[P[i]], self.path])
+                        i = P[i]
+                    success = True
+                    break
+                        
+                #increment n
+                n=n+1
+            
+        
         ########## Code ends here ##########
 
         plt.figure()
@@ -155,12 +202,24 @@ class GeometricRRT(RRT):
         ########## Code starts here ##########
         # Hint: This should take one line.
         
+        #if given a random x, which node in our RRT tree, V, is the closest?
+        return np.argmin(np.sqrt((V[:,0]-x[0])**2 +(V[:,1]-x[1])**2))
         ########## Code ends here ##########
 
     def steer_towards(self, x1, x2, eps):
         ########## Code starts here ##########
         # Hint: This should take one line.
         
+        #x1 is the nearest tree point, x2 is the rand point, eps is the max steering dist
+        #so want to scale the vector b/w x1 and x2
+        """"""
+        if (np.linalg.norm(x2-x1) < eps):
+            retVal = (x2-x1) +x1
+        else:
+            retVal = (x2-x1)*(eps/np.linalg.norm(x2-x1)) +x1
+        """"""
+            
+        return retVal
         ########## Code ends here ##########
 
     def is_free_motion(self, obstacles, x1, x2):

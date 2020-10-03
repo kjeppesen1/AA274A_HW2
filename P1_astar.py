@@ -222,7 +222,7 @@ class AStar(object):
                 if x_neigh in self.closed_set:
                     continue
                
-                #calculate the tentative cost to arrive , TODO wtf?
+                #calculate the tentative cost to arrive
                 tent_cost_arr = self.cost_to_arrive[x_cur] + self.distance(x_cur,x_neigh)
                 
                 #if the neighbor node in question is not in the open set, add it
