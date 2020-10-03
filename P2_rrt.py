@@ -121,6 +121,9 @@ class RRT(object):
             else:
                 x_rand = [np.random.uniform(self.statespace_lo[0],self.statespace_hi[0]),
                           np.random.uniform(self.statespace_lo[1],self.statespace_hi[1])]
+                #if we are doing Dubins, need 3 rand vals (theta)
+                if (state_dim == 3):
+                    x_rand = np.append(x_rand, np.random.uniform(0,2*np.pi))
             
             #find the nearest neighbor to the random point (w/in the tree thus far, up to n)
             #x_near = self.find_nearest(V[:n,:], x_rand)
@@ -141,10 +144,10 @@ class RRT(object):
                 #if (x_new == self.x_goal):
                 if np.linalg.norm(x_new - self.x_goal) == 0:
                     self.path = [self.x_goal]
-                    i = n
-                    while i>0:
-                        self.path = np.vstack([V[P[i]], self.path])
-                        i = P[i]
+                    cnt = n
+                    while cnt > 0:
+                        self.path = np.vstack([V[P[cnt]], self.path])
+                        cnt = P[cnt]
                     success = True
                     break
                         
@@ -189,7 +192,28 @@ class RRT(object):
             None, but should modify self.path
         """
         ########## Code starts here ##########
-        
+        #success = False
+        #while not success:
+        #    success = True
+        #    for x in range(1,len(self.path[0,:])):
+        #        if (x not self.x_init) and (x not self.x_goal):
+        #            if self.is_free_motion(self.obstacles, self.path[x,:], self.path[x-1,:]):
+        #                np.delete(self.path,x,0)
+        #                success = false
+
+        success = False
+        while not success:
+            success = True
+            x=1
+            #look at all nodes in our chosen path except start/fin
+            while x < (len(self.path)-1):
+                #if you are able to connect two nodes by skipping middle node, do it!
+                if self.is_free_motion(self.obstacles, self.path[x-1,:], self.path[x+1,:]):
+                    self.path = np.delete(self.path,x,0)
+                    success = False
+                x = x + 1
+
+                           
         ########## Code ends here ##########
 
 class GeometricRRT(RRT):
@@ -255,7 +279,24 @@ class DubinsRRT(RRT):
     def find_nearest(self, V, x):
         from dubins import path_length
         ########## Code starts here ##########
-        
+        #return the index
+        #if given a random x, which node in our RRT tree, V, is the closest?
+        """
+        min_min_len = 10000
+        for i in range(len(V)):
+            min_len = np.min(path_length(V[i,0],x,self.turning_radius))
+            if (min_len < min_min_len):
+                min_min_len = min_len
+                min_index = np.argmin(path_length(V[i,0],x,self.turning_radius))
+        return min_index
+        """
+            
+        #return np.argmin(path_length(V,x,self.turning_radius))
+                                     
+        path_lengths = np.zeros(len(V))
+        for i in range(len(V)):
+            path_lengths[i] = path_length(V[i,:],x,self.turning_radius)
+        return np.argmin(path_lengths)
         ########## Code ends here ##########
 
     def steer_towards(self, x1, x2, eps):
@@ -269,7 +310,35 @@ class DubinsRRT(RRT):
         distance eps (using self.turning_radius) due to numerical precision
         issues.
         """
+        from dubins import path_sample, path_length
+        """
+        if (len(x2) == 2):
+            x2 = np.append(x2, np.random.uniform(0.0,2*np.pi))
+        configs = path_sample(x1,x2,1.001*self.turning_radius,eps)
+        print (configs)
+        config_arr = np.array(configs)
+        print(config_arr)
+        """
+        #div eps by 10 b/c 10 steps, unless premature ending
+        configs = path_sample(x1,x2,1.001*self.turning_radius,eps/10)
+        if len(configs[0]) < 10:
+            x_new = np.array(configs[0][len(configs[0])-1])
+        else:
+            x_new = np.array(configs[0][9])
         
+        #now cover the condition if we are within eps of goal so we can actually reach it
+        if path_length(x_new,x1,self.turning_radius) < eps:
+            return x2
+        else:
+            return x_new
+
+        
+        #if len(configs[0]) < 10:
+        #    return np.array(configs[0][-1])
+        #else:
+        #    return np.array(configs[0][9])
+        #return np.array(config_arr[0,:]) - np.array(config_arr[:,1])
+    
         ########## Code ends here ##########
 
     def is_free_motion(self, obstacles, x1, x2, resolution = np.pi/6):
