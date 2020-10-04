@@ -310,14 +310,6 @@ class DubinsRRT(RRT):
         issues.
         """
         from dubins import path_sample, path_length
-        """
-        if (len(x2) == 2):
-            x2 = np.append(x2, np.random.uniform(0.0,2*np.pi))
-        configs = path_sample(x1,x2,1.001*self.turning_radius,eps)
-        print (configs)
-        config_arr = np.array(configs)
-        print(config_arr)
-        """
         #div eps by 10 b/c 10 steps, unless premature ending
         configs = path_sample(x1,x2,1.001*self.turning_radius,eps/10)
         if len(configs[0]) < 10:
@@ -330,13 +322,6 @@ class DubinsRRT(RRT):
             return x2
         else:
             return x_new
-
-        
-        #if len(configs[0]) < 10:
-        #    return np.array(configs[0][-1])
-        #else:
-        #    return np.array(configs[0][9])
-        #return np.array(config_arr[0,:]) - np.array(config_arr[:,1])
     
         ########## Code ends here ##########
 

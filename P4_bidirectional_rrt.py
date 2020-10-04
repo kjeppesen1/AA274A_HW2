@@ -141,6 +141,9 @@ class RRTConnect(object):
             #get random state
             x_rand = [np.random.uniform(self.statespace_lo[0],self.statespace_hi[0]),
                         np.random.uniform(self.statespace_lo[1],self.statespace_hi[1])]
+            #if we are doing Dubins, need 3 rand vals (theta)
+            if (state_dim == 3):
+                x_rand = np.append(x_rand, np.random.uniform(0,2*np.pi))
             #find the nearest neighbor forward to the random point (w/in the tree thus far, up to n)
             x_near = V_fw[self.find_nearest_forward(V_fw[:n_fw,:], x_rand),:]
             #find the actual new point to maybe add to the tree by scaling with eps
@@ -216,6 +219,9 @@ class RRTConnect(object):
             #get random state
             x_rand = [np.random.uniform(self.statespace_lo[0],self.statespace_hi[0]),
                         np.random.uniform(self.statespace_lo[1],self.statespace_hi[1])]
+            #if we are doing Dubins, need 3 rand vals (theta)
+            if (state_dim == 3):
+                x_rand = np.append(x_rand, np.random.uniform(0,2*np.pi))
             #find the nearest neighbor forward to the random point (w/in the tree thus far, up to n)
             x_near = V_bw[self.find_nearest_backward(V_bw[:n_bw,:], x_rand),:]
             #find the actual new point to maybe add to the tree by scaling with eps
@@ -385,22 +391,57 @@ class DubinsRRTConnect(RRTConnect):
 
     def find_nearest_forward(self, V, x):
         ########## Code starts here ##########
-        pass
+        path_lengths = np.zeros(len(V))
+        for i in range(len(V)):
+            path_lengths[i] = path_length(V[i,:],x,self.turning_radius)
+        return np.argmin(path_lengths)
         ########## Code ends here ##########
 
     def find_nearest_backward(self, V, x):
         ########## Code starts here ##########
-        pass
+        path_lengths = np.zeros(len(V))
+        for i in range(len(V)):
+            #reverse the heading, since backwards
+            V[i,:] = self.reverse_heading(V[i,:])
+            path_lengths[i] = path_length(V[i,:],x,self.turning_radius)
+        return np.argmin(path_lengths)
         ########## Code ends here ##########
 
     def steer_towards_forward(self, x1, x2, eps):
         ########## Code starts here ##########
-        pass
+        from dubins import path_sample, path_length
+        #div eps by 10 b/c 10 steps, unless premature ending
+        configs = path_sample(x1,x2,1.001*self.turning_radius,eps/10)
+        if len(configs[0]) < 10:
+            x_new = np.array(configs[0][len(configs[0])-1])
+        else:
+            x_new = np.array(configs[0][9])
+        
+        #now cover the condition if we are within eps of goal so we can actually reach it
+        if path_length(x_new,x1,self.turning_radius) < eps:
+            return x2
+        else:
+            return x_new
         ########## Code ends here ##########
 
     def steer_towards_backward(self, x1, x2, eps):
         ########## Code starts here ##########
-        pass
+        from dubins import path_sample, path_length
+        #div eps by 10 b/c 10 steps, unless premature ending
+        
+        x1 = self.reverse_heading(x1)
+        #x2 = self.reverse_heading(x2)
+        configs = path_sample(x2,x1,1.001*self.turning_radius,eps/10)
+        if len(configs[0]) < 10:
+            x_new = np.array(configs[0][len(configs[0])-1])
+        else:
+            x_new = np.array(configs[0][9])
+        
+        #now cover the condition if we are within eps of goal so we can actually reach it
+        if path_length(x_new,x2,self.turning_radius) < eps:
+            return x1
+        else:
+            return x_new
         ########## Code ends here ##########
 
     def is_free_motion(self, obstacles, x1, x2, resolution = np.pi/6):
