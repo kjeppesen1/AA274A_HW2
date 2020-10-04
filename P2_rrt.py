@@ -310,12 +310,11 @@ class DubinsRRT(RRT):
         issues.
         """
         from dubins import path_sample, path_length
-        #div eps by 10 b/c 10 steps, unless premature ending
-        configs = path_sample(x1,x2,1.001*self.turning_radius,eps/10)
-        if len(configs[0]) < 10:
-            x_new = np.array(configs[0][len(configs[0])-1])
+        configs = path_sample(x1,x2,1.001*self.turning_radius,eps)
+        if len(configs[0]) < 2:
+            x_new = np.array(configs[0][0])
         else:
-            x_new = np.array(configs[0][9])
+            x_new = np.array(configs[0][1])
         
         #now cover the condition if we are within eps of goal so we can actually reach it
         if path_length(x_new,x1,self.turning_radius) < eps:

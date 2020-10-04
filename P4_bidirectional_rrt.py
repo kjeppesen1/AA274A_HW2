@@ -391,6 +391,7 @@ class DubinsRRTConnect(RRTConnect):
 
     def find_nearest_forward(self, V, x):
         ########## Code starts here ##########
+        from dubins import path_length
         path_lengths = np.zeros(len(V))
         for i in range(len(V)):
             path_lengths[i] = path_length(V[i,:],x,self.turning_radius)
@@ -399,6 +400,7 @@ class DubinsRRTConnect(RRTConnect):
 
     def find_nearest_backward(self, V, x):
         ########## Code starts here ##########
+        from dubins import path_length
         path_lengths = np.zeros(len(V))
         for i in range(len(V)):
             #reverse the heading, since backwards
@@ -409,6 +411,7 @@ class DubinsRRTConnect(RRTConnect):
 
     def steer_towards_forward(self, x1, x2, eps):
         ########## Code starts here ##########
+        """
         from dubins import path_sample, path_length
         #div eps by 10 b/c 10 steps, unless premature ending
         configs = path_sample(x1,x2,1.001*self.turning_radius,eps/10)
@@ -422,26 +425,38 @@ class DubinsRRTConnect(RRTConnect):
             return x2
         else:
             return x_new
+        """
+        
+        from dubins import path_sample, path_length
+        configs = path_sample(x1,x2,1.001*self.turning_radius,eps)
+        if len(configs[0]) < 2:
+            x_new = np.array(configs[0][0])
+        else:
+            x_new = np.array(configs[0][1])
+        
+        #now cover the condition if we are within eps of goal so we can actually reach it
+        if path_length(x_new,x1,self.turning_radius) < eps:
+            return x2
+        else:
+            return x_new
         ########## Code ends here ##########
 
     def steer_towards_backward(self, x1, x2, eps):
         ########## Code starts here ##########
         from dubins import path_sample, path_length
-        #div eps by 10 b/c 10 steps, unless premature ending
-        
         x1 = self.reverse_heading(x1)
-        #x2 = self.reverse_heading(x2)
-        configs = path_sample(x2,x1,1.001*self.turning_radius,eps/10)
-        if len(configs[0]) < 10:
-            x_new = np.array(configs[0][len(configs[0])-1])
+        x2 = self.reverse_heading(x2)
+        configs = path_sample(x2,x1,1.001*self.turning_radius,eps)
+        if len(configs[0]) < 2:
+            x_new = np.array(configs[0][0])
         else:
-            x_new = np.array(configs[0][9])
-        
+            x_new = np.array(configs[0][1])
+                   
         #now cover the condition if we are within eps of goal so we can actually reach it
         if path_length(x_new,x2,self.turning_radius) < eps:
-            return x1
+            return self.reverse_heading(x1)
         else:
-            return x_new
+            return self.reverse_heading(x_new)
         ########## Code ends here ##########
 
     def is_free_motion(self, obstacles, x1, x2, resolution = np.pi/6):
