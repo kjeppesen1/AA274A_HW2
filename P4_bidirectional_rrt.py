@@ -132,7 +132,158 @@ class RRTConnect(object):
         # Hint: Use your implementation of RRT as a reference
 
         ########## Code starts here ##########
+        #init the forward and backward trees
+        V_fw[0,:] = self.x_init
+        V_bw[0,:] = self.x_goal
         
+        #loop through
+        for k in range(1,max_iters-1):
+            #get random state
+            x_rand = [np.random.uniform(self.statespace_lo[0],self.statespace_hi[0]),
+                        np.random.uniform(self.statespace_lo[1],self.statespace_hi[1])]
+            #find the nearest neighbor forward to the random point (w/in the tree thus far, up to n)
+            x_near = V_fw[self.find_nearest_forward(V_fw[:n_fw,:], x_rand),:]
+            #find the actual new point to maybe add to the tree by scaling with eps
+            x_new = self.steer_towards_forward(x_near,x_rand,eps)
+            
+            #check for collisions
+            if self.is_free_motion(self.obstacles, x_near, x_new):
+                #add the new point to the forward tree
+                V_fw[n_fw,:] = x_new
+                
+                #add the new edge to the forward tree
+                P_fw[n_fw] = self.find_nearest_forward(V_fw[:n_fw,:], x_rand)
+                
+                
+                #find the nearest neighbor backwards
+                x_connect = V_bw[self.find_nearest_backward(V_bw[:n_bw,:], x_new),:]
+                
+                #xxx
+                while(True):
+                    #xxxx
+                    x_new_connect = self.steer_towards_backward(x_new,x_connect,eps)
+                    #x_new_connect = self.steer_towards_backward(x_connect,x_new,eps)
+                    
+                    #check for collisons
+                    if self.is_free_motion(self.obstacles, x_connect, x_new_connect):
+                        #add the new point to the backward tree
+                        V_bw[n_bw,:] = x_new_connect
+                
+                        #add the new edge to the backward tree
+                        P_bw[n_bw] = self.find_nearest_backward(V_bw[:n_bw,:], x_new)
+                        
+                        #n_bw = n_bw + 1
+                        
+                        #print("xxx")
+                        #print(x_new_connect)
+                        #print(x_connect)
+                        #if our two points happen to be the SAME point...reconstruct the path
+                        if np.linalg.norm(x_new_connect - x_new) == 0:
+                            #return the completely reconstructed path
+                            self.path = [x_new_connect]
+                            cnt_fw = n_fw
+                            cnt_bw = n_bw
+                            #from connection go back to init
+                            while cnt_fw > 0:
+                                self.path = np.vstack([V_fw[P_fw[cnt_fw]], self.path])
+                                cnt_fw = P_fw[cnt_fw]
+                            #from connection go to goal
+                            while cnt_bw > 0:
+                                self.path = np.vstack([self.path, V_bw[P_bw[cnt_bw]]])
+                                cnt_bw = P_bw[cnt_bw]
+                            
+                            #set success to true
+                            success = True
+                            break
+                        n_bw = n_bw + 1
+                        
+                        #assign new connect to connect
+                        x_connect = x_new_connect
+                    else:
+                        break
+                        
+                n_fw = n_fw + 1
+                #n_bw = n_bw + 1
+                        
+            if(success):
+                break            
+            #n_fw = n_fw+1 
+            #n_fw = n_fw + 1 #TESTING!
+            
+            ###
+            #now repeat everything, but from the opposite sense
+            
+            #get random state
+            x_rand = [np.random.uniform(self.statespace_lo[0],self.statespace_hi[0]),
+                        np.random.uniform(self.statespace_lo[1],self.statespace_hi[1])]
+            #find the nearest neighbor forward to the random point (w/in the tree thus far, up to n)
+            x_near = V_bw[self.find_nearest_backward(V_bw[:n_bw,:], x_rand),:]
+            #find the actual new point to maybe add to the tree by scaling with eps
+            #x_new = self.steer_towards_backward(x_near,x_rand,eps)
+            x_new = self.steer_towards_backward(x_rand,x_near,eps)
+            
+            #check for collisions
+            if self.is_free_motion(self.obstacles, x_new, x_near):
+            #if self.is_free_motion(self.obstacles, x_near, x_new):
+                #add the new point to the backward tree
+                V_bw[n_bw,:] = x_new
+                
+                #add the new edge to the backward tree
+                P_bw[n_bw] = self.find_nearest_backward(V_bw[:n_bw,:], x_rand)
+                
+                #find the nearest neighbor forward
+                x_connect = V_fw[self.find_nearest_forward(V_fw[:n_fw,:], x_new),:]
+                
+                #xxx
+                while(True):
+                    #xxxx
+                    x_new_connect = self.steer_towards_forward(x_connect,x_new,eps)
+                    #x_new_connect = self.steer_towards_forward(x_new,x_connect,eps)
+                    
+                    #check for collisons
+                    if self.is_free_motion(self.obstacles, x_connect, x_new_connect):
+                        #add the new point to the forward tree
+                        V_fw[n_fw,:] = x_new_connect
+                
+                        #add the new edge to the forward tree
+                        P_fw[n_fw] = self.find_nearest_forward(V_fw[:n_fw,:], x_new)
+                        
+                        #n_fw = n_fw + 1
+                        
+                        #print("---")
+                        #print(x_new_connect)
+                        #print(x_connect)
+                        #if our two points happen to be the SAME point...reconstruct the path
+                        if np.linalg.norm(x_new_connect - x_new) == 0:
+                            #return the completely reconstructed path
+                            self.path = [x_new_connect]
+                            cnt_fw = n_fw
+                            cnt_bw = n_bw
+                            #from connection go back to init
+                            while cnt_fw > 0:
+                                self.path = np.vstack([V_fw[P_fw[cnt_fw]], self.path])
+                                cnt_fw = P_fw[cnt_fw]
+                            #from connection go to goal
+                            while cnt_bw > 0:
+                                self.path = np.vstack([self.path, V_bw[P_bw[cnt_bw]]])
+                                cnt_bw = P_bw[cnt_bw]
+                            #set success to true
+                            success = True
+                            break
+                        
+                        n_fw = n_fw + 1
+                        
+                        #assign new connect to connect
+                        x_connect = x_new_connect
+                    else:
+                        break
+                        
+                n_bw = n_bw+1
+                #n_fw = n_fw+1
+            if(success):
+                break
+            #n_bw = n_bw+1
+            #n_fw = n_fw + 1 #TESTING!
 
         ########## Code ends here ##########
 
@@ -166,7 +317,7 @@ class GeometricRRTConnect(RRTConnect):
     def find_nearest_forward(self, V, x):
         ########## Code starts here ##########
         # Hint: This should take one line.
-        
+        return np.argmin(np.sqrt((V[:,0]-x[0])**2 +(V[:,1]-x[1])**2))
         ########## Code ends here ##########
 
     def find_nearest_backward(self, V, x):
@@ -175,7 +326,12 @@ class GeometricRRTConnect(RRTConnect):
     def steer_towards_forward(self, x1, x2, eps):
         ########## Code starts here ##########
         # Hint: This should take one line.
-        
+        if (np.linalg.norm(x2-x1) < eps):
+            retVal = (x2-x1) +x1
+        else:
+            retVal = (x2-x1)*(eps/np.linalg.norm(x2-x1)) +x1
+            
+        return retVal
         ########## Code ends here ##########
 
     def steer_towards_backward(self, x1, x2, eps):
@@ -229,22 +385,22 @@ class DubinsRRTConnect(RRTConnect):
 
     def find_nearest_forward(self, V, x):
         ########## Code starts here ##########
-        
+        pass
         ########## Code ends here ##########
 
     def find_nearest_backward(self, V, x):
         ########## Code starts here ##########
-        
+        pass
         ########## Code ends here ##########
 
     def steer_towards_forward(self, x1, x2, eps):
         ########## Code starts here ##########
-        
+        pass
         ########## Code ends here ##########
 
     def steer_towards_backward(self, x1, x2, eps):
         ########## Code starts here ##########
-        
+        pass
         ########## Code ends here ##########
 
     def is_free_motion(self, obstacles, x1, x2, resolution = np.pi/6):

@@ -236,12 +236,11 @@ class GeometricRRT(RRT):
         
         #x1 is the nearest tree point, x2 is the rand point, eps is the max steering dist
         #so want to scale the vector b/w x1 and x2
-        """"""
+        
         if (np.linalg.norm(x2-x1) < eps):
             retVal = (x2-x1) +x1
         else:
             retVal = (x2-x1)*(eps/np.linalg.norm(x2-x1)) +x1
-        """"""
             
         return retVal
         ########## Code ends here ##########
