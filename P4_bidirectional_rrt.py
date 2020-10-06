@@ -137,15 +137,16 @@ class RRTConnect(object):
         V_bw[0,:] = self.x_goal
         
         #loop through
-        for k in range(1,max_iters-1):
+        for k in range(0,max_iters-1):
             #get random state
-            x_rand = [np.random.uniform(self.statespace_lo[0],self.statespace_hi[0]),
-                        np.random.uniform(self.statespace_lo[1],self.statespace_hi[1])]
+            x_rand = np.array([np.random.uniform(self.statespace_lo[0],self.statespace_hi[0]),
+                        np.random.uniform(self.statespace_lo[1],self.statespace_hi[1])])
             #if we are doing Dubins, need 3 rand vals (theta)
             if (state_dim == 3):
                 x_rand = np.append(x_rand, np.random.uniform(0,2*np.pi))
             #find the nearest neighbor forward to the random point (w/in the tree thus far, up to n)
-            x_near = V_fw[self.find_nearest_forward(V_fw[:n_fw,:], x_rand),:]
+            near_f_index = self.find_nearest_forward(V_fw[:n_fw,:], x_rand)
+            x_near = V_fw[near_f_index,:]
             #find the actual new point to maybe add to the tree by scaling with eps
             x_new = self.steer_towards_forward(x_near,x_rand,eps)
             
@@ -155,11 +156,12 @@ class RRTConnect(object):
                 V_fw[n_fw,:] = x_new
                 
                 #add the new edge to the forward tree
-                P_fw[n_fw] = self.find_nearest_forward(V_fw[:n_fw,:], x_rand)
+                P_fw[n_fw] = near_f_index
                 
                 
                 #find the nearest neighbor backwards
-                x_connect = V_bw[self.find_nearest_backward(V_bw[:n_bw,:], x_new),:]
+                near_b_index = self.find_nearest_backward(V_bw[:n_bw,:], x_new)
+                x_connect = V_bw[near_b_index,:]
                 
                 #xxx
                 while(True):
@@ -173,7 +175,7 @@ class RRTConnect(object):
                         V_bw[n_bw,:] = x_new_connect
                 
                         #add the new edge to the backward tree
-                        P_bw[n_bw] = self.find_nearest_backward(V_bw[:n_bw,:], x_new)
+                        P_bw[n_bw] = near_b_index
                         
                         #n_bw = n_bw + 1
                         
@@ -217,28 +219,30 @@ class RRTConnect(object):
             #now repeat everything, but from the opposite sense
             
             #get random state
-            x_rand = [np.random.uniform(self.statespace_lo[0],self.statespace_hi[0]),
-                        np.random.uniform(self.statespace_lo[1],self.statespace_hi[1])]
+            x_rand = np.array([np.random.uniform(self.statespace_lo[0],self.statespace_hi[0]),
+                        np.random.uniform(self.statespace_lo[1],self.statespace_hi[1])])
             #if we are doing Dubins, need 3 rand vals (theta)
             if (state_dim == 3):
                 x_rand = np.append(x_rand, np.random.uniform(0,2*np.pi))
             #find the nearest neighbor forward to the random point (w/in the tree thus far, up to n)
-            x_near = V_bw[self.find_nearest_backward(V_bw[:n_bw,:], x_rand),:]
+            near_b_index = self.find_nearest_backward(V_bw[:n_bw,:], x_rand)
+            x_near = V_bw[near_b_index,:]
             #find the actual new point to maybe add to the tree by scaling with eps
             #x_new = self.steer_towards_backward(x_near,x_rand,eps)
             x_new = self.steer_towards_backward(x_rand,x_near,eps)
             
             #check for collisions
-            if self.is_free_motion(self.obstacles, x_new, x_near):
+            if self.is_free_motion(self.obstacles, x_near, x_new):
             #if self.is_free_motion(self.obstacles, x_near, x_new):
                 #add the new point to the backward tree
                 V_bw[n_bw,:] = x_new
                 
                 #add the new edge to the backward tree
-                P_bw[n_bw] = self.find_nearest_backward(V_bw[:n_bw,:], x_rand)
+                P_bw[n_bw] = near_b_index
                 
                 #find the nearest neighbor forward
-                x_connect = V_fw[self.find_nearest_forward(V_fw[:n_fw,:], x_new),:]
+                near_f_index = self.find_nearest_forward(V_fw[:n_fw,:], x_new)
+                x_connect = V_fw[near_f_index,:]
                 
                 #xxx
                 while(True):
@@ -247,12 +251,12 @@ class RRTConnect(object):
                     #x_new_connect = self.steer_towards_forward(x_new,x_connect,eps)
                     
                     #check for collisons
-                    if self.is_free_motion(self.obstacles, x_connect, x_new_connect):
+                    if self.is_free_motion(self.obstacles, x_new_connect, x_connect):
                         #add the new point to the forward tree
                         V_fw[n_fw,:] = x_new_connect
                 
                         #add the new edge to the forward tree
-                        P_fw[n_fw] = self.find_nearest_forward(V_fw[:n_fw,:], x_new)
+                        P_fw[n_fw] = near_f_index
                         
                         #n_fw = n_fw + 1
                         
@@ -260,7 +264,7 @@ class RRTConnect(object):
                         #print(x_new_connect)
                         #print(x_connect)
                         #if our two points happen to be the SAME point...reconstruct the path
-                        if np.linalg.norm(x_new_connect - x_new) == 0:
+                        if np.linalg.norm(x_new - x_new_connect) == 0:
                             #return the completely reconstructed path
                             self.path = [x_new_connect]
                             cnt_fw = n_fw
@@ -404,8 +408,7 @@ class DubinsRRTConnect(RRTConnect):
         path_lengths = np.zeros(len(V))
         for i in range(len(V)):
             #reverse the heading, since backwards
-            V[i,:] = self.reverse_heading(V[i,:])
-            path_lengths[i] = path_length(V[i,:],x,self.turning_radius)
+            path_lengths[i] = path_length(self.reverse_heading(V[i,:]),self.reverse_heading(x),self.turning_radius)
         return np.argmin(path_lengths)
         ########## Code ends here ##########
 
@@ -429,6 +432,9 @@ class DubinsRRTConnect(RRTConnect):
         
         from dubins import path_sample, path_length
         configs = path_sample(x1,x2,1.001*self.turning_radius,eps)
+        
+        if len(configs[0]) == 0:
+            return x2
         if len(configs[0]) < 2:
             x_new = np.array(configs[0][0])
         else:
@@ -447,6 +453,9 @@ class DubinsRRTConnect(RRTConnect):
         x1 = self.reverse_heading(x1)
         x2 = self.reverse_heading(x2)
         configs = path_sample(x2,x1,1.001*self.turning_radius,eps)
+        
+        if len(configs[0]) == 0:
+            return self.reverse_heading(x2)
         if len(configs[0]) < 2:
             x_new = np.array(configs[0][0])
         else:
